@@ -1,4 +1,73 @@
-## Server Setup
+# Remote Server
+The following setup will allow for the creation of a remote server capable of hosting
+a dynamic website. This is possible through **Nginx**, **Docker**, and **FastAPI**.
+
+## Setup
+The following setup process, encompasses the following dependencies/ tools:
+- Nginx
+- Docker
+- Github
+- FastAPI
+- Certbot
+- DNS Records
+
+### Pre-setup
+1. Purchase domain from [domain.com](https://www.domain.com/) or [godaddy.com](https://www.godaddy.com)
+2. Rent a remote server. I recommend [Linode](https://cloud.linode.com/linodes). 
+3. Modify your domain's DNS records:
+    - Remove any any existing A record that may say **Parked**
+    - Add a new A record, with the following information:
+      - name: @
+      - data/value: remote server IP address
+      - TTL: 1/2 hour
+
+### Docker
+This section details the creation of a Docker images and its execution inside a docker container.
+This section assumes that you have created a simple FastAPI server.
+
+Use the following as a sample **Dockerfile**
+```Dockerfile
+# Import latest Python version
+FROM python:latest
+
+# Set the working directory to app/
+WORKDIR /app
+
+# Copy the current directory contents into /app
+COPY . /app
+
+# Install requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Specifies port on which container will listen at runtime
+EXPOSE 8000
+
+# Run FastAPI server, specifying port on which univorn will listen
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+1. Build the image
+```bash
+sudo docker build -t <IMAGE NAME> .
+```
+
+2. Run the container (detached)
+```bash
+# This maps the port 8000 on the host machine to port 8000 inside of the container
+docker run -d -p 8000:8000 <IMAGE NAME>
+```
+
+The above steps should work locally before attempting to execute on the remote server
+
+### Status 01
+You can access your hosted website through **http** protocol. 
+The majority of web-browsers will recognize this as an unsafe sight, as it does
+not follow the https protocol. 
+
+### Server Setup
+#TODO Continue from here specifying nginx setup, and what should be expected
+
+
 
 ### 1. Install Server Software
 - nginx

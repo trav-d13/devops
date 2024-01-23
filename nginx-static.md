@@ -1,5 +1,5 @@
-# NGinx Configuration
-Default config file for Nginx 
+# Nginx Configuration for Static Website
+Default config file for Nginx config file in order to host a static website
 
 ```
 server {
