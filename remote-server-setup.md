@@ -1,20 +1,117 @@
-## Server Setup
+# Remote Server
+The following setup will allow for the creation of a remote server capable of hosting
+a dynamic website. This is possible through **Nginx**, **Docker**, and **FastAPI**.
 
-### 1. Install Server Software
-- nginx
-- git
-- docker-compose
-- application code
+## Setup
+The following setup process, encompasses the following dependencies/ tools:
+- Nginx
+- Docker
+- Github
+- FastAPI
+- Certbot
+- DNS Records
 
-**CHECK**: IP address points to Nginx defaut page
+### Pre-setup
+1. Purchase domain from [domain.com](https://www.domain.com/) or [godaddy.com](https://www.godaddy.com)
+2. Rent a remote server. I recommend [Linode](https://cloud.linode.com/linodes). 
+3. Modify your domain's DNS records:
+    - Remove any any existing A record that may say **Parked**
+    - Add a new A record, with the following information:
+      - name: @
+      - data/value: remote server IP address
+      - TTL: 1/2 hour
 
-### 2. DNS
-Register Domain name and set A records to point to static IP of server hosting API
+**CHECK**: IP address points to Nginx defaut page. This requires you to set up Nginx on your remote server first and
+adjust the A records as above.
 
-**CHECK**: domain name points to Nginx default page
+### Docker
+This section details the creation of a Docker image and its execution inside a docker container.
+Assuming you have created a simple FastAPI server, please execute the below steps:
 
-### 3. OpenSSL Certbot 
-SSL into server and run CertBot as per [instructions](https://certbot.eff.org/instructions)
+Use this **Dockerfile** as a template and adapt it to your use case:
+```Dockerfile
+# Import latest Python version
+FROM python:latest
+
+# Set the working directory to app/
+WORKDIR /app
+
+# Copy the current directory contents into /app
+COPY . /app
+
+# Install requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Specifies port on which container will listen at runtime
+EXPOSE 8000
+
+# Run FastAPI server, specifying port on which univorn will listen
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+1. Build the image
+```bash
+sudo docker build -t <IMAGE NAME> .
+```
+
+2. Run the container (detached)
+```bash
+# This maps the port 8000 on the host machine to port 8000 inside of the container
+docker run -d -p 8000:8000 <IMAGE NAME>
+```
+
+The above steps should work locally before attempting to execute on the remote server.
+
+
+### Server Setup
+1. Access your remote server using the ssh.
+2. Download Docker to the remote server `pip install docker.io`
+3. Clone your GitHub repository containing your project.
+4. Build and run (detached) the docker container.
+
+### Nginx setup
+1. Create a nginx config file (replace $NAME$ with a file name)
+```
+nano /etc/nginx/sites-available/$NAME$
+```
+2. Copy the following information and save it.
+This allows for the redirection of http to https.
+
+```
+server {
+   listen 80;
+   server_name $DOMAIN$;
+   
+   location / {
+      proxy_pass http://127.0.0.0:8000;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote-addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+   }
+}
+```
+3. Create a symbolic link to the config file
+```
+sudo ln -s /etc/nginx/sites-available/$NAME$ etc/nginx/sites-available/default
+```
+4. Remove the default nginx config file
+```
+sudo rm  /etc/nginx/sites-available/default
+```
+5. Restart nginx
+```
+sudo service nginx restart
+```
+
+**Check:** When visiting your domain in browser, your home page should be visible (not secured)
+
+### Certbot
+1. Follow the Certbot installation instructions available at [Certbot]()
+2. Execute certbot and follow the instructions in terminal
+```
+certbot --nginx -d $DOMAIN NAME$
+```
 
 If correctly installed should get this:
 
@@ -33,53 +130,11 @@ If you like Certbot, please consider supporting our work by:
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ```
 
-### 4. Configuration file `/etc/nginx/sites-enabled/demo.conf`:
+**Check:** https://example.domain.com.
+Once Certbot instructions has been completed, visiting your domain in terminal should show the site is secured.
 
-```
-## Redirect http to https
-server {
-   listen 80;
-   server_name example.yourdomain.com;
-   return 307 https://example.yourdomain.com$request_uri;
- }
- 
-## Redirect www to https
-server {
-   listen 80;
-   server_name www.example.yourdomain.com;
-   return 307 https://example.yourdomain.com$request_uri;
-}
 
- 
-server {
-   listen 443 ssl;
-   server_name example.yourdomain.com;
-   ssl_certificate  /path/to/your/certificate;
-   ssl_certificate_key  /path/to/your/certificate/key;
-   ssl_prefer_server_ciphers on;
-
-   ## Forward through original IP
-   set_real_ip_from 0.0.0.0/0;
-   real_ip_header X-Real-IP;
-   real_ip_recursive on;
-
-   location / {
-        proxy_pass http://localhost:8080;
-
-        proxy_set_header        Host $host;
-        proxy_set_header        X-Real-IP $remote_addr;
-        proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header        X-Forwarded-Host $remote_addr;
-        proxy_set_header        X-Forwarded-Proto $scheme;
-   }
-}
-
-```
-Reload the Nginx server: `nginx -s reload`
-
-**CHECK**: https://example.domain.com
-
-### 5. Setup Firewall
+### Setup Firewall
 
 Confirm ufw installed and disabled
 ```
